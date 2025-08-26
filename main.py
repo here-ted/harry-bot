@@ -1,6 +1,5 @@
 import logging
 import datetime
-from turtle import pos
 from typing import Set
 
 import aiohttp
@@ -95,9 +94,9 @@ def get_next_run_time():
 async def push_bullet(news: str):
     await post(config.push_bullet_push_url, 
             { 
-                'type':'note',
-                'title':'每日新闻' + datetime.datetime.now().strftime('%Y-%m-%d'),
-                'body':'news'
+                'type': 'note',
+                'title': '每日新闻' + datetime.datetime.now().strftime('%Y-%m-%d'),
+                'body': news
             },
             {
                 'Access-Token': config.push_bullet_token,

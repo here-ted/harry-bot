@@ -3,3 +3,5 @@ services:
     build: .
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Shanghai
