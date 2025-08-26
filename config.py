@@ -9,6 +9,8 @@ news_60_base_array = ['https://60s.viki.moe/v2/60s?encoding=text',
                       'https://60s-api-cf.viki.moe/v2/60s?encoding=text',
                       'https://60s-api.114128.xyz/v2/60s?encoding=text',
                       'https://60s-api-cf.114128.xyz/v2/60s?encoding=text']
+push_bullet_token = os.getenv('PUSH_BULLET_TOKEN')
+push_bullet_push_url = os.getenv('PUSH_BULLET_PUSH_URL')
 
 system = platform.system()
 if system == 'Windows':
