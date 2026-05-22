@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 # 存储订阅用户的chat_id集合
 subscribed_users: Set[int] = set()
+hermes_commands: Set[str] = {'/approve', '/always', '/cancel', '/new', '/stop'}
 
 
 def get_allowed_chat_ids() -> Set[str]:
@@ -38,6 +39,18 @@ def is_allowed_chat(chat_id: int) -> bool:
     return str(chat_id) in allowed_chat_ids
 
 
+def get_hermes_command_text(message_text: str) -> str:
+    command_text = message_text.strip()
+    if not command_text.startswith('/'):
+        command_text = '/' + command_text
+
+    command_name = command_text.split(maxsplit=1)[0]
+    if command_name not in hermes_commands:
+        return ''
+
+    return command_text
+
+
 async def request(url: str) -> str:
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
@@ -50,6 +63,13 @@ async def post(url: str, data: dict, headers: dict) -> str:
         async with session.post(url, json=data, headers=headers) as response:
             response.raise_for_status()  # 检查HTTP错误
             return await response.json()
+
+
+async def post_text(url: str, text: str) -> str:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, data=text.encode('utf-8'), headers={'Content-Type': 'text/plain; charset=utf-8'}) as response:
+            response.raise_for_status()  # 检查HTTP错误
+            return await response.text()
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -68,6 +88,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 获取并发送当前新闻
     news = await get_news()
     await context.bot.send_message(chat_id=chat_id, text=news)
+
+
+async def forward_hermes_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+
+    if not is_allowed_chat(chat_id):
+        logger.warning(f'拒绝未授权用户 {chat_id} 转发 Hermes 命令')
+        await context.bot.send_message(chat_id=chat_id, text='Sorry, this bot is private.')
+        return
+
+    if not config.hermes_command_url:
+        logger.error('未配置 HERMES_COMMAND_URL，无法转发 Hermes 命令')
+        await context.bot.send_message(chat_id=chat_id, text='Hermes command endpoint is not configured.')
+        return
+
+    command_text = get_hermes_command_text(update.effective_message.text or '')
+    if not command_text:
+        logger.warning(f'拒绝转发不支持的 Hermes 命令: {update.effective_message.text}')
+        await context.bot.send_message(chat_id=chat_id, text='Unsupported Hermes command.')
+        return
+
+    await post_text(config.hermes_command_url, command_text)
+    logger.info(f'已向 Hermes 转发命令: {command_text}')
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -142,6 +185,21 @@ if __name__ == '__main__':
 
     start_handler = CommandHandler('start', start)
     application.add_handler(start_handler)
+
+    stop_handler = CommandHandler('stop', forward_hermes_command)
+    application.add_handler(stop_handler)
+
+    approve_handler = CommandHandler('approve', forward_hermes_command)
+    application.add_handler(approve_handler)
+
+    always_handler = CommandHandler('always', forward_hermes_command)
+    application.add_handler(always_handler)
+
+    cancel_handler = CommandHandler('cancel', forward_hermes_command)
+    application.add_handler(cancel_handler)
+
+    new_handler = CommandHandler('new', forward_hermes_command)
+    application.add_handler(new_handler)
 
     unknown_handler = MessageHandler(filters.COMMAND, unknown)
     application.add_handler(unknown_handler)
