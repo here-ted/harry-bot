@@ -4,6 +4,7 @@ import os
 
 logger = logging.getLogger(__name__)
 tg_bot_token = os.getenv('TG_BOT_TOKEN', 'your-default-token-for-dev')
+tg_allowed_chat_id = os.getenv('TG_ALLOWED_CHAT_ID')
 news_60_base_array = ['https://60s.viki.moe/v2/60s?encoding=text',
                       'https://60s.b23.run/v2/60s?encoding=text',
                       'https://60s-api-cf.viki.moe/v2/60s?encoding=text',

@@ -18,6 +18,26 @@ logger = logging.getLogger(__name__)
 subscribed_users: Set[int] = set()
 
 
+def get_allowed_chat_ids() -> Set[str]:
+    if not config.tg_allowed_chat_id:
+        return set()
+
+    return {
+        chat_id.strip()
+        for chat_id in config.tg_allowed_chat_id.split(',')
+        if chat_id.strip()
+    }
+
+
+def is_allowed_chat(chat_id: int) -> bool:
+    allowed_chat_ids = get_allowed_chat_ids()
+    if not allowed_chat_ids:
+        logger.warning('未配置 TG_ALLOWED_CHAT_ID，当前允许所有聊天访问')
+        return True
+
+    return str(chat_id) in allowed_chat_ids
+
+
 async def request(url: str) -> str:
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
@@ -34,6 +54,11 @@ async def post(url: str, data: dict, headers: dict) -> str:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
+
+    if not is_allowed_chat(chat_id):
+        logger.warning(f'拒绝未授权用户 {chat_id} 使用 bot')
+        await context.bot.send_message(chat_id=chat_id, text='Sorry, this bot is private.')
+        return
     
     # 将用户添加到订阅列表
     if chat_id not in subscribed_users:
@@ -46,7 +71,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")
+    chat_id = update.effective_chat.id
+
+    if not is_allowed_chat(chat_id):
+        logger.warning(f'拒绝未授权用户 {chat_id} 使用未知命令')
+        await context.bot.send_message(chat_id=chat_id, text='Sorry, this bot is private.')
+        return
+
+    await context.bot.send_message(chat_id=chat_id, text="Sorry, I didn't understand that command.")
 
 
 # 定时任务函数 - 向所有订阅的用户发送消息
